@@ -61,7 +61,7 @@ DJ Input (CLI / TUI)
        │
        ▼
   Crusoe Cloud Managed Inference
-  model: hack-crusoe/Nemotron-3-Nano-30B-A3B-FP8
+  model: nvidia/Nemotron-3-Nano-30B-A3B
        │
        ▼
   Structured JSON Response
@@ -109,7 +109,7 @@ setmind tui
 
 | Layer | Tech |
 |---|---|
-| AI Brain | NVIDIA Nemotron-3-Nano-30B-A3B-FP8 |
+| AI Brain | NVIDIA Nemotron-3-Nano-30B-A3B |
 | Inference | Crusoe Cloud Managed Inference |
 | Agent Pattern | Hermes-style structured prompting |
 | CLI Framework | Commander.js |

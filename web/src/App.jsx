@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 
-const MODEL = 'hack-crusoe/Nemotron-3-Nano-30B-A3B-FP8';
+const MODEL = 'nvidia/Nemotron-3-Nano-30B-A3B';
 const GENRES = ['techno', 'house', 'dnb', 'hip-hop', 'afrobeats', 'pop', 'ambient', 'other'];
 const KEYS = ['Cm', 'C', 'Dm', 'D', 'Em', 'E', 'Fm', 'F', 'Gm', 'G', 'Am', 'A', 'Bm', 'B'];
 const TABS = ['DECKS', 'CROWD AI', 'SET PLAN', 'LIBRARY'];

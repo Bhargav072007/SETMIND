@@ -164,7 +164,7 @@ export default function DJApp() {
           padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           fontSize: 12, color: '#ffb400', flexShrink: 0
         }}>
-          <span>⚠ Nemotron not connected — check your Crusoe API key. Model: hack-crusoe/Nemotron-3-Nano-30B-A3B-FP8</span>
+          <span>⚠ Nemotron not connected — check your Crusoe API key. Model: nvidia/Nemotron-3-Nano-30B-A3B</span>
           <button onClick={() => setBannerDismissed(true)} style={{ background: 'none', border: 'none', color: '#ffb400', cursor: 'pointer', fontSize: 14 }}>✕</button>
         </div>
       )}

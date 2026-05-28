@@ -339,7 +339,7 @@ program
       const fetch = require('node-fetch');
       const url = process.env.CRUSOE_API_URL || 'https://api.inference.crusoecloud.com/v1/chat/completions';
       const key = process.env.CRUSOE_API_KEY || '';
-      const model = process.env.CRUSOE_MODEL || 'hack-crusoe/Nemotron-3-Nano-30B-A3B-FP8';
+      const model = process.env.CRUSOE_MODEL || 'nvidia/Nemotron-3-Nano-30B-A3B';
 
       const res = await fetch(url, {
         method: 'POST',

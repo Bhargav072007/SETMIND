@@ -14,7 +14,7 @@ services:
       - key: CRUSOE_API_URL
         value: https://api.inference.crusoecloud.com/v1/chat/completions
       - key: CRUSOE_MODEL
-        value: hack-crusoe/Nemotron-3-Nano-30B-A3B-FP8
+        value: nvidia/Nemotron-3-Nano-30B-A3B
       - key: GETLARK_API_KEY
         sync: false
       - key: GETLARK_MCP_URL
