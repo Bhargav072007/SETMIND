@@ -3,7 +3,7 @@
 require('dotenv').config();
 const fetch = require('node-fetch');
 
-const CRUSOE_API_URL = process.env.CRUSOE_API_URL || 'https://api.inference.crusoecloud.com/v1/chat/completions';
+const CRUSOE_API_URL = process.env.CRUSOE_API_URL || 'https://managed-inference-api-proxy.crusoecloud.com/v1/chat/completions';
 const CRUSOE_MODEL = process.env.CRUSOE_MODEL || 'nvidia/Nemotron-3-Nano-30B-A3B';
 const CRUSOE_API_KEY = process.env.CRUSOE_API_KEY || '';
 
