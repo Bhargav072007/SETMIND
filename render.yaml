@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: setmind
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm --prefix web install && npm run build
+    startCommand: npm run server
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
+      - key: CRUSOE_API_KEY
+        sync: false
+      - key: CRUSOE_API_URL
+        value: https://api.inference.crusoecloud.com/v1/chat/completions
+      - key: CRUSOE_MODEL
+        value: hack-crusoe/Nemotron-3-Nano-30B-A3B-FP8
+      - key: GETLARK_API_KEY
+        sync: false
+      - key: GETLARK_MCP_URL
+        value: https://api.getlark.ai/mcp
