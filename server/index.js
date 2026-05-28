@@ -73,7 +73,20 @@ function normalizeItunesTrack(item, fallbackGenre) {
 
 app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
   let payload;
+  const crusoeConfigured = Boolean(CRUSOE_API_KEY && CRUSOE_API_KEY !== 'your_crusoe_api_key_here');
   try {
+    if (!crusoeConfigured) {
+      payload = {
+        nemotron: false,
+        error: 'CRUSOE_API_KEY is missing in Render environment variables.',
+        model: CRUSOE_MODEL,
+        crusoeConfigured: false,
+        lark: Boolean(process.env.GETLARK_API_KEY && process.env.GETLARK_API_KEY !== 'your_lark_api_key_here')
+      };
+      res.json(payload);
+      return;
+    }
+
     const response = await fetch(CRUSOE_API_URL, {
       method: 'POST',
       headers: {
@@ -96,6 +109,7 @@ app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
         nemotron: false,
         error: error.message,
         model: CRUSOE_MODEL,
+        crusoeConfigured,
         lark: Boolean(process.env.GETLARK_API_KEY && process.env.GETLARK_API_KEY !== 'your_lark_api_key_here')
       };
       res.json(payload);
@@ -105,6 +119,7 @@ app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
     payload = {
       nemotron: true,
       model: CRUSOE_MODEL,
+      crusoeConfigured,
       lark: Boolean(process.env.GETLARK_API_KEY && process.env.GETLARK_API_KEY !== 'your_lark_api_key_here')
     };
     res.json(payload);
@@ -114,6 +129,7 @@ app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
       nemotron: false,
       error: error.message,
       model: CRUSOE_MODEL,
+      crusoeConfigured,
       lark: Boolean(process.env.GETLARK_API_KEY && process.env.GETLARK_API_KEY !== 'your_lark_api_key_here')
     };
     res.json(payload);
@@ -180,4 +196,5 @@ app.listen(PORT, function onListen() {
   console.log(`SETMIND server running at http://localhost:${PORT}`);
   console.log(`Model: ${CRUSOE_MODEL}`);
   console.log(`Crusoe: ${CRUSOE_API_URL}`);
+  console.log(`Crusoe key configured: ${Boolean(CRUSOE_API_KEY && CRUSOE_API_KEY !== 'your_crusoe_api_key_here')}`);
 });

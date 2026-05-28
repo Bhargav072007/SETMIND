@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 
 const CRUSOE_API_URL = process.env.CRUSOE_API_URL || 'https://api.inference.crusoecloud.com/v1/chat/completions';
 const CRUSOE_MODEL = process.env.CRUSOE_MODEL || 'hack-crusoe/Nemotron-3-Nano-30B-A3B-FP8';
-const CRUSOE_API_KEY = process.env.CRUSOE_API_KEY || '42ffcJ8DTTyXkYJuqWWPeQ$2a$10$0yJ8QR8q0kPd.vo5thNGV.eOXwHcYR.BqVcyYKd.ghaZVaw8wGiEa';
+const CRUSOE_API_KEY = process.env.CRUSOE_API_KEY || '';
 
 const HERMES_SYSTEM = [
   'You are SETMIND, a professional AI DJ workflow agent for club and festival DJs.',
@@ -58,6 +58,10 @@ function extractAssistantPayload(data) {
 }
 
 async function callNemotron(userPrompt, maxTokens = 800) {
+  if (!CRUSOE_API_KEY || CRUSOE_API_KEY === 'your_crusoe_api_key_here') {
+    throw new Error('CRUSOE_API_KEY is missing or invalid in the environment.');
+  }
+
   let lastError = null;
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
