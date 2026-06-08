@@ -1437,30 +1437,6 @@ function MixerPanel({
           </label>
         </div>
 
-        <div className="mixplan-card">
-          <div className="mixplan-head">
-            <div>
-              <label>LIVE COUNTDOWN</label>
-              <strong>{liveBeatHint.headline}</strong>
-            </div>
-          </div>
-          <p className="muted-copy">{liveBeatHint.detail}</p>
-        </div>
-
-        <div className="mixplan-card">
-          <div className="mixplan-head">
-            <div>
-              <label>AI QUEUE LANE</label>
-              <strong>{aiQueueLane.length ? 'Prepared suggestions' : 'No AI queued tracks yet'}</strong>
-            </div>
-          </div>
-          <div className="mixplan-steps">
-            {aiQueueLane.length ? aiQueueLane.map((item) => (
-              <p key={`${item.deck}-${item.trackName}`}>Deck {item.deck}: {item.trackName} · {item.artist || 'Unknown Artist'} · {item.bpm} BPM</p>
-            )) : <p>Use AI Assist queue buttons to stage tracks here before loading them.</p>}
-          </div>
-        </div>
-
         <div className={aiMixer.enabled ? 'ai-mixer-status armed' : 'ai-mixer-status'}>
           <strong>{aiMixer.enabled ? '● Live' : 'Status'}</strong>
           <span>{aiMixer.status}</span>
@@ -1470,7 +1446,7 @@ function MixerPanel({
   );
 }
 
-function AIDrawer({ open, setOpen, deckA, deckB, contextDeckId, onLoadSmart, onQueueSmart }) {
+function AIDrawer({ open, setOpen, deckA, deckB, contextDeckId, onLoadSmart, onQueueSmart, onSuggest }) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingDeck, setLoadingDeck] = useState('');
@@ -1483,10 +1459,12 @@ function AIDrawer({ open, setOpen, deckA, deckB, contextDeckId, onLoadSmart, onQ
     setLoading(true);
     setError('');
     try {
-      setResponse(await api('/api/prompt', {
+      const result = await api('/api/prompt', {
         method: 'POST',
         body: JSON.stringify({ prompt: message, deckA, deckB, contextDeckId })
-      }));
+      });
+      setResponse(result);
+      if (onSuggest && result.suggestedTracks) onSuggest(result.suggestedTracks, 'from prompt');
       setPrompt('');
     } catch (requestError) {
       setResponse(null);
@@ -2071,6 +2049,60 @@ function LibraryTab({ library, setLibrary, onLoad }) {
   );
 }
 
+function SuggestionToast({ toast, onLoad, onQueue, onDismiss }) {
+  const [busy, setBusy] = useState('');
+  const parsed = parseSuggestedTrackName(toast.track);
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+
+  // Mount-only timer (parent re-renders often; don't reset on every render)
+  useEffect(() => {
+    const timer = setTimeout(() => dismissRef.current(toast.id), 26000);
+    return () => clearTimeout(timer);
+  }, [toast.id]);
+
+  async function act(kind, deckId) {
+    setBusy(`${kind}-${deckId}`);
+    try {
+      const candidate = { trackName: toast.track, track: toast.track, bpm: toast.bpm };
+      if (kind === 'load') await onLoad(candidate, deckId);
+      else await onQueue(candidate, deckId);
+      onDismiss(toast.id);
+    } catch {
+      setBusy('');
+    }
+  }
+
+  return (
+    <div className="suggestion-toast glass-card">
+      <button className="toast-close" onClick={() => onDismiss(toast.id)} aria-label="Dismiss">✕</button>
+      <div className="toast-eyebrow">
+        <span className="toast-spark">✦</span> AI pick {toast.source}
+      </div>
+      <strong className="toast-title">{parsed.trackName || toast.track}</strong>
+      <span className="toast-sub">{parsed.artist ? parsed.artist + ' · ' : ''}{toast.bpm ? toast.bpm + ' BPM' : ''}</span>
+      {toast.reason && <p className="toast-reason">{toast.reason}</p>}
+      <div className="toast-actions">
+        <button className="toast-btn a" disabled={!!busy} onClick={() => act('load', 'A')}>{busy === 'load-A' ? '…' : 'Load A'}</button>
+        <button className="toast-btn b" disabled={!!busy} onClick={() => act('load', 'B')}>{busy === 'load-B' ? '…' : 'Load B'}</button>
+        <button className="toast-btn q" disabled={!!busy} onClick={() => act('queue', 'A')}>{busy === 'queue-A' ? '…' : '+A'}</button>
+        <button className="toast-btn q" disabled={!!busy} onClick={() => act('queue', 'B')}>{busy === 'queue-B' ? '…' : '+B'}</button>
+      </div>
+    </div>
+  );
+}
+
+function SuggestionToasts({ toasts, onLoad, onQueue, onDismiss }) {
+  if (!toasts.length) return null;
+  return (
+    <div className="suggestion-toast-stack">
+      {toasts.map((toast) => (
+        <SuggestionToast key={toast.id} toast={toast} onLoad={onLoad} onQueue={onQueue} onDismiss={onDismiss} />
+      ))}
+    </div>
+  );
+}
+
 function DecksTab({ deckA, setDeckA, deckB, setDeckB, library, energy, setEnergy, history, setHistory }) {
   const [crossfader, setCrossfader] = useState(50);
   const [effects, setEffects] = useState({ REVERB: false, DELAY: false, FILTER: false, FLANGER: false });
@@ -2088,9 +2120,33 @@ function DecksTab({ deckA, setDeckA, deckB, setDeckB, library, energy, setEnergy
   const [mixPlanLoading, setMixPlanLoading] = useState(false);
   const [mixPlanError, setMixPlanError] = useState('');
   const [aiQueueLane, setAiQueueLane] = useState([]);
+  const [toasts, setToasts] = useState([]);
+  const toastIdRef = useRef(0);
   const mixRef = useRef({ running: false, timer: null, timeout: null });
   const autoQueueRef = useRef({ loading: false, lastKey: '' });
   const audio = useAudioEngine(deckA, deckB, setDeckA, setDeckB, crossfader);
+
+  function dismissToast(id) {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  function pushSuggestionToasts(tracks, source = 'AI') {
+    const items = (tracks || []).filter((t) => t && (t.track || t.trackName)).slice(0, 4);
+    if (!items.length) return;
+    setToasts((prev) => {
+      const existing = new Set(prev.map((t) => t.track));
+      const fresh = items
+        .map((t) => ({
+          id: ++toastIdRef.current,
+          track: t.track || t.trackName,
+          bpm: t.bpm || '',
+          reason: t.reason || '',
+          source
+        }))
+        .filter((t) => !existing.has(t.track));
+      return [...fresh, ...prev].slice(0, 5);
+    });
+  }
 
   const autoMixAdvice = useMemo(() => makeAutoMixAdvice(deckA, deckB), [deckA, deckB]);
   const mixSignature = `${deckA.trackName}|${deckA.artist}|${adjustedBpm(deckA)}|${deckA.key}::${deckB.trackName}|${deckB.artist}|${adjustedBpm(deckB)}|${deckB.key}`;
@@ -2199,13 +2255,13 @@ function DecksTab({ deckA, setDeckA, deckB, setDeckB, library, energy, setEnergy
     };
   }, [deckA, deckB, mixPlan, aiMixer.trigger]);
 
-  async function autoLoadSimilarTrack(sourceDeck, targetDeckId) {
-    setAiMixer((prev) => ({ ...prev, status: 'Finding similar track for Deck ' + targetDeckId + '...' }));
+  async function autoLoadSimilarTrack(sourceDeck, targetDeckId, { autoLoad = true } = {}) {
+    setAiMixer((prev) => ({ ...prev, status: 'Finding similar tracks for Deck ' + targetDeckId + '...' }));
     try {
       const result = await api('/api/prompt', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: `Suggest ONE track that would mix perfectly after "${sourceDeck.trackName}" by ${sourceDeck.artist}. The track plays at ${sourceDeck.bpm} BPM in key ${sourceDeck.key}, genre: ${sourceDeck.genre}. Return a track that blends harmonically and energetically.`,
+          prompt: `Suggest 3 tracks that would mix perfectly after "${sourceDeck.trackName}" by ${sourceDeck.artist}. The track plays at ${sourceDeck.bpm} BPM in key ${sourceDeck.key}, genre: ${sourceDeck.genre}. Return tracks that blend harmonically and energetically.`,
           deckA,
           deckB,
           contextDeckId: targetDeckId
@@ -2214,6 +2270,12 @@ function DecksTab({ deckA, setDeckA, deckB, setDeckB, library, energy, setEnergy
       const suggestions = result.suggestedTracks || [];
       if (!suggestions.length) {
         setAiMixer((prev) => ({ ...prev, status: 'No similar track found. Try searching manually.' }));
+        return;
+      }
+      // Surface all picks as glass toast cards so the DJ can choose / queue.
+      pushSuggestionToasts(suggestions, `for Deck ${targetDeckId}`);
+      if (!autoLoad) {
+        setAiMixer((prev) => ({ ...prev, status: `AI suggested ${suggestions.length} tracks for Deck ${targetDeckId}` }));
         return;
       }
       const candidate = suggestions[0];
@@ -2495,8 +2557,9 @@ function DecksTab({ deckA, setDeckA, deckB, setDeckB, library, energy, setEnergy
       </div>
 
       {searchDeckId && <SearchModal deckId={searchDeckId} library={library} onClose={() => setSearchDeckId('')} onLoad={loadTrack} pushQueue={pushQueue} />}
-      <AIDrawer open={aiOpen} setOpen={setAiOpen} deckA={deckA} deckB={deckB} contextDeckId={aiDeckId} onLoadSmart={loadTrackSmart} onQueueSmart={queueTrackSmart} />
+      <AIDrawer open={aiOpen} setOpen={setAiOpen} deckA={deckA} deckB={deckB} contextDeckId={aiDeckId} onLoadSmart={loadTrackSmart} onQueueSmart={queueTrackSmart} onSuggest={pushSuggestionToasts} />
       <HistorySidebar history={history} open={historyOpen} setOpen={setHistoryOpen} />
+      <SuggestionToasts toasts={toasts} onLoad={loadTrackSmart} onQueue={queueTrackSmart} onDismiss={dismissToast} />
     </div>
   );
 }
