@@ -518,6 +518,8 @@ function BrandMark() {
 
 function LandingPage() {
   const [landingTracks, setLandingTracks] = useState([]);
+  const [showKeyPanel, setShowKeyPanel] = useState(false);
+  const [hasKey, setHasKey] = useState(() => Boolean(getStoredApiKey()));
 
   useEffect(() => {
     let cancelled = false;
@@ -543,8 +545,33 @@ function LandingPage() {
       <div className="landing-backdrop" />
       <nav className="landing-nav">
         <BrandMark />
-        <Link to="/app" className="button-accent nav-button">Launch App</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => setShowKeyPanel(true)}
+            style={{
+              background: hasKey ? 'rgba(34,197,94,0.08)' : 'rgba(252,60,68,0.1)',
+              border: hasKey ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(252,60,68,0.3)',
+              borderRadius: 8, padding: '7px 14px',
+              color: hasKey ? '#22c55e' : '#fc3c44',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            {hasKey ? 'API Key Set ✓' : 'Add API Key'}
+          </button>
+          <Link to="/app" className="button-accent nav-button">Launch App</Link>
+        </div>
       </nav>
+      {showKeyPanel && (
+        <ApiKeyPanel
+          onClose={() => { setShowKeyPanel(false); setHasKey(Boolean(getStoredApiKey())); }}
+          onSave={() => setHasKey(Boolean(getStoredApiKey()))}
+        />
+      )}
 
       <section className="hero-block">
         <div className="hero-layout">
