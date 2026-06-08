@@ -33,7 +33,7 @@ export default function DJApp() {
   const [activeTab, setActiveTab] = useState(0);
   const [deckA, setDeckA] = useState(() => initialDeck('A'));
   const [deckB, setDeckB] = useState(() => initialDeck('B'));
-  const [health, setHealth] = useState({ nemotron: null, lark: false });
+  const [health, setHealth] = useState({ gemini: null });
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [setHistory, setSetHistory] = useState([]);
 
@@ -44,7 +44,7 @@ export default function DJApp() {
       const data = await res.json();
       setHealth(data);
     } catch {
-      setHealth({ nemotron: false, error: 'Server unreachable' });
+      setHealth({ gemini: false, error: 'Server unreachable' });
     }
   }, []);
 
@@ -83,9 +83,9 @@ export default function DJApp() {
     addToHistory(track, deckId);
   }, [updateDeck, addToHistory]);
 
-  const nemotronOk = health.nemotron === true;
-  const nemotronUnknown = health.nemotron === null;
-  const showBanner = !nemotronUnknown && !nemotronOk && !bannerDismissed;
+  const geminiOk = health.gemini === true;
+  const geminiUnknown = health.gemini === null;
+  const showBanner = !geminiUnknown && !geminiOk && !bannerDismissed;
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#000', overflow: 'hidden' }}>
@@ -134,8 +134,7 @@ export default function DJApp() {
           {/* Right: status + back */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <StatusDot label="Nemotron" ok={nemotronOk} unknown={nemotronUnknown} />
-              <StatusDot label="Lark" ok={health.lark} unknown={false} />
+              <StatusDot label="Gemini" ok={geminiOk} unknown={geminiUnknown} />
             </div>
             <button
               onClick={() => navigate('/')}
@@ -157,14 +156,14 @@ export default function DJApp() {
         </div>
       </header>
 
-      {/* Nemotron warning banner */}
+      {/* Gemini warning banner */}
       {showBanner && (
         <div style={{
           background: 'rgba(255,180,0,0.08)', borderBottom: '1px solid rgba(255,180,0,0.2)',
           padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           fontSize: 12, color: '#ffb400', flexShrink: 0
         }}>
-          <span>⚠ Nemotron not connected — check your Crusoe API key. Model: nvidia/Nemotron-3-Nano-30B-A3B</span>
+          <span>⚠ Gemini AI not connected — check your GEMINI_API_KEY in environment variables.</span>
           <button onClick={() => setBannerDismissed(true)} style={{ background: 'none', border: 'none', color: '#ffb400', cursor: 'pointer', fontSize: 14 }}>✕</button>
         </div>
       )}

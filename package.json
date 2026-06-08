@@ -1,42 +1,32 @@
 {
   "name": "setmind",
-  "version": "1.0.0",
-  "description": "AI-powered Pro DJ workflow tool — Nemotron on Crusoe + Lark CLI/MCP",
+  "version": "2.0.0",
+  "description": "AI-powered Pro DJ workflow tool — Gemini AI",
   "main": "src/index.js",
   "bin": {
     "setmind": "./bin/setmind.js"
   },
   "type": "commonjs",
   "scripts": {
-    "start": "node bin/setmind.js",
+    "start": "node server/index.js",
     "server": "node server/index.js",
     "dev": "npm --prefix web run dev",
     "build": "npm --prefix web run build",
-    "preview": "npm --prefix web run preview",
-    "tui": "node bin/setmind.js tui",
-    "plan": "node bin/setmind.js plan",
-    "pulse": "node bin/setmind.js pulse",
-    "health": "node bin/setmind.js health"
+    "preview": "npm --prefix web run preview"
   },
   "keywords": [
     "dj",
     "ai",
-    "nemotron",
-    "crusoe",
-    "lark",
+    "gemini",
     "music"
   ],
   "author": "aurae",
   "license": "MIT",
   "dependencies": {
-    "blessed": "^0.1.81",
-    "blessed-contrib": "^4.10.1",
-    "chalk": "^4.1.2",
-    "commander": "^11.1.0",
-    "dotenv": "^16.3.1",
+    "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "node-fetch": "^2.7.0",
-    "ora": "^5.4.1"
+    "node-fetch": "^2.7.0"
   }
 }

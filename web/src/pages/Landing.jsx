@@ -138,7 +138,7 @@ export default function Landing() {
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 11, color: '#fc3c44', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 24 }}>
-            Powered by NVIDIA Nemotron · Crusoe Cloud
+            Powered by Google Gemini AI
           </div>
 
           <h1 style={{ fontSize: 'clamp(40px, 6vw, 64px)', fontWeight: 700, letterSpacing: '-2px', lineHeight: 1.05, marginBottom: 24 }}>
@@ -147,7 +147,7 @@ export default function Landing() {
 
           <p style={{ fontSize: 18, color: '#888', maxWidth: 520, margin: '0 auto 40px', lineHeight: 1.6 }}>
             Real-time crowd analysis. Intelligent set planning.
-            Track suggestions that match the room. Powered by Nemotron.
+            Track suggestions that match the room. Powered by Gemini AI.
           </p>
 
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -208,17 +208,17 @@ export default function Landing() {
               {
                 icon: <IconWaveform />,
                 title: 'Crowd Pulse',
-                desc: 'Real-time crowd analysis. Nemotron reads the room and tells you exactly what to play next and why.'
+                desc: 'Real-time crowd analysis. Gemini AI reads the room and tells you exactly what to play next and why.'
               },
               {
                 icon: <IconLayers />,
                 title: 'Set Architect',
-                desc: 'Describe your gig. Nemotron builds the full energy arc — warm-up to close — with BPM mapping and example tracks.'
+                desc: 'Describe your gig. Gemini AI builds the full energy arc — warm-up to close — with BPM mapping and example tracks.'
               },
               {
                 icon: <IconSparkle />,
                 title: 'AI Prompter',
-                desc: 'Type anything. "The crowd is losing it." "Go darker." "Find me 130 BPM house." Nemotron responds instantly.'
+                desc: 'Type anything. "The crowd is losing it." "Go darker." "Find me 130 BPM house." Gemini responds instantly.'
               }
             ].map(f => (
               <div key={f.title} className="feat-card">
@@ -273,7 +273,7 @@ export default function Landing() {
           Launch SETMIND →
         </button>
         <div style={{ fontSize: 12, color: '#444', marginTop: 8 }}>
-          Free during hackathon · Powered by Crusoe Cloud
+          Powered by Google Gemini AI
         </div>
       </section>
 
@@ -284,7 +284,7 @@ export default function Landing() {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center'
       }}>
         <span style={{ fontSize: 12, color: '#444' }}>SETMIND © 2026</span>
-        <span style={{ fontSize: 12, color: '#444' }}>Built for the Crusoe + Lark Hackathon</span>
+        <span style={{ fontSize: 12, color: '#444' }}>AI-Powered DJ Platform</span>
       </footer>
     </div>
   );

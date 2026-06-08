@@ -35,7 +35,7 @@ function EmptyState() {
       </svg>
       <div style={{ textAlign:'center' }}>
         <div style={{ fontSize:14, color:'#444', marginBottom:4 }}>Fill in the crowd details and run analysis</div>
-        <div style={{ fontSize:12, color:'#2a2a2a' }}>Nemotron will read the room for you</div>
+        <div style={{ fontSize:12, color:'#2a2a2a' }}>Gemini AI will read the room for you</div>
       </div>
     </div>
   );
@@ -160,7 +160,7 @@ export default function CrowdAITab({ deckA, deckB }) {
             {loading ? <><span className="spinner" />&nbsp;Reading the room…</> : 'Run Crowd Pulse'}
           </button>
           {error && <div style={{ marginTop:8, fontSize:11, color:'#fc3c44', padding:'6px 8px', background:'rgba(252,60,68,0.08)', borderRadius:4 }}>{error}</div>}
-          <div style={{ fontSize:10, color:'#2a2a2a', textAlign:'center', marginTop:8 }}>Powered by Nemotron on Crusoe Cloud</div>
+          <div style={{ fontSize:10, color:'#2a2a2a', textAlign:'center', marginTop:8 }}>Powered by Google Gemini AI</div>
         </div>
       </div>
 

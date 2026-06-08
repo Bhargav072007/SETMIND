@@ -188,7 +188,7 @@ function AIPrompter({ deckA, deckB, onClose }) {
       });
       const data = await res.json();
       setResponse(data);
-    } catch (e) { setResponse({ response:'Could not reach Nemotron. Check server.', suggestedTracks:[], action:'HOLD' }); }
+    } catch (e) { setResponse({ response:'Could not reach Gemini AI. Check server.', suggestedTracks:[], action:'HOLD' }); }
     setLoading(false);
     setText('');
   };
@@ -213,7 +213,7 @@ function AIPrompter({ deckA, deckB, onClose }) {
       {/* Response area */}
       {(loading || response) && (
         <div style={{ flex:1, overflowY:'auto', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:8, padding:12, display:'flex', flexDirection:'column', gap:8 }}>
-          {loading && <div style={{ display:'flex', alignItems:'center', gap:8 }}><span className="spinner" /><span style={{ fontSize:12, color:'#555' }}>Nemotron is thinking…</span></div>}
+          {loading && <div style={{ display:'flex', alignItems:'center', gap:8 }}><span className="spinner" /><span style={{ fontSize:12, color:'#555' }}>Gemini is thinking…</span></div>}
           {response && <>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
               {response.action && <span style={{ background: actionColors[response.action]||'#555', color:'#000', borderRadius:4, padding:'2px 8px', fontSize:10, fontWeight:700 }}>{response.action}</span>}

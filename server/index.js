@@ -12,11 +12,9 @@ const {
   trackBrain,
   promptDj,
   planMixTransition,
-  CRUSOE_API_URL,
-  CRUSOE_MODEL,
-  CRUSOE_API_KEY
-} = require('../src/agent/nemotron');
-const { bootstrapLarkWorkflows } = require('../src/lark/workflows');
+  GEMINI_API_KEY,
+  GEMINI_MODEL
+} = require('../src/agent/gemini');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
@@ -72,67 +70,22 @@ function normalizeItunesTrack(item, fallbackGenre) {
 }
 
 app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
-  let payload;
-  const crusoeConfigured = Boolean(CRUSOE_API_KEY && CRUSOE_API_KEY !== 'your_crusoe_api_key_here');
+  const geminiConfigured = Boolean(GEMINI_API_KEY);
+  if (!geminiConfigured) {
+    res.json({ gemini: false, error: 'GEMINI_API_KEY is missing.', model: GEMINI_MODEL, geminiConfigured: false });
+    return;
+  }
+
   try {
-    if (!crusoeConfigured) {
-      payload = {
-        nemotron: false,
-        error: 'CRUSOE_API_KEY is missing in Render environment variables.',
-        model: CRUSOE_MODEL,
-        crusoeConfigured: false,
-        lark: Boolean(process.env.GETLARK_API_KEY && process.env.GETLARK_API_KEY !== 'your_lark_api_key_here')
-      };
-      res.json(payload);
-      return;
-    }
-
-    const response = await fetch(CRUSOE_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${CRUSOE_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: CRUSOE_MODEL,
-        max_tokens: 800,
-        messages: [{ role: 'user', content: 'ping' }]
-      }),
-      timeout: 20000
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      const error = new Error(`HTTP ${response.status}: ${body}`);
-      console.error('Nemotron health check failed:', error);
-      payload = {
-        nemotron: false,
-        error: error.message,
-        model: CRUSOE_MODEL,
-        crusoeConfigured,
-        lark: Boolean(process.env.GETLARK_API_KEY && process.env.GETLARK_API_KEY !== 'your_lark_api_key_here')
-      };
-      res.json(payload);
-      return;
-    }
-
-    payload = {
-      nemotron: true,
-      model: CRUSOE_MODEL,
-      crusoeConfigured,
-      lark: Boolean(process.env.GETLARK_API_KEY && process.env.GETLARK_API_KEY !== 'your_lark_api_key_here')
-    };
-    res.json(payload);
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const client = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = client.getGenerativeModel({ model: GEMINI_MODEL });
+    const result = await model.generateContent('ping');
+    const text = result.response.text();
+    res.json({ gemini: Boolean(text), model: GEMINI_MODEL, geminiConfigured: true });
   } catch (error) {
-    console.error('Nemotron health check failed:', error);
-    payload = {
-      nemotron: false,
-      error: error.message,
-      model: CRUSOE_MODEL,
-      crusoeConfigured,
-      lark: Boolean(process.env.GETLARK_API_KEY && process.env.GETLARK_API_KEY !== 'your_lark_api_key_here')
-    };
-    res.json(payload);
+    console.error('Gemini health check failed:', error);
+    res.json({ gemini: false, error: error.message, model: GEMINI_MODEL, geminiConfigured });
   }
 }));
 
@@ -140,61 +93,30 @@ app.get('/api/search', asyncRoute(async function searchRoute(req, res) {
   const query = String(req.query.q || '').trim();
   const genre = String(req.query.genre || '').trim();
   const limit = Math.max(1, Math.min(25, Number(req.query.limit || 12)));
-  if (!query) {
-    res.json([]);
-    return;
-  }
+  if (!query) { res.json([]); return; }
 
   const url = `https://itunes.apple.com/search?term=${encodeURIComponent(`${query} ${genre}`.trim())}&media=music&entity=song&limit=${limit}`;
   const response = await fetch(url, { timeout: 15000 });
-  if (!response.ok) {
-    throw new Error(`iTunes Search API HTTP ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`iTunes Search API HTTP ${response.status}`);
   const data = await response.json();
   res.json((data.results || []).map((item) => normalizeItunesTrack(item, genre)));
 }));
 
-app.post('/api/plan', asyncRoute(async function planRoute(req, res) {
-  res.json(await planSet(req.body || {}));
-}));
-
-app.post('/api/pulse', asyncRoute(async function pulseRoute(req, res) {
-  res.json(await crowdPulse(req.body || {}));
-}));
-
-app.post('/api/brain', asyncRoute(async function brainRoute(req, res) {
-  res.json(await trackBrain(req.body || {}));
-}));
-
-app.post('/api/prompt', asyncRoute(async function promptRoute(req, res) {
-  res.json(await promptDj(req.body || {}));
-}));
-
-app.post('/api/mixplan', asyncRoute(async function mixPlanRoute(req, res) {
-  res.json(await planMixTransition(req.body || {}));
-}));
-
-app.post('/api/lark/bootstrap', asyncRoute(async function larkRoute(req, res) {
-  const results = await bootstrapLarkWorkflows();
-  res.json({
-    success: true,
-    results
-  });
-}));
+app.post('/api/plan', asyncRoute(async (req, res) => res.json(await planSet(req.body || {}))));
+app.post('/api/pulse', asyncRoute(async (req, res) => res.json(await crowdPulse(req.body || {}))));
+app.post('/api/brain', asyncRoute(async (req, res) => res.json(await trackBrain(req.body || {}))));
+app.post('/api/prompt', asyncRoute(async (req, res) => res.json(await promptDj(req.body || {}))));
+app.post('/api/mixplan', asyncRoute(async (req, res) => res.json(await planMixTransition(req.body || {}))));
 
 app.get('*', function spaFallback(req, res) {
   const indexPath = path.join(webBuildPath, 'index.html');
   res.sendFile(indexPath, function onSend(error) {
-    if (error) {
-      res.status(404).send('Build the web app first: cd web && npm install && npm run build');
-    }
+    if (error) res.status(404).send('Build the web app first: cd web && npm install && npm run build');
   });
 });
 
 app.listen(PORT, function onListen() {
   console.log(`SETMIND server running at http://localhost:${PORT}`);
-  console.log(`Model: ${CRUSOE_MODEL}`);
-  console.log(`Crusoe: ${CRUSOE_API_URL}`);
-  console.log(`Crusoe key configured: ${Boolean(CRUSOE_API_KEY && CRUSOE_API_KEY !== 'your_crusoe_api_key_here')}`);
+  console.log(`Model: ${GEMINI_MODEL}`);
+  console.log(`Gemini key configured: ${Boolean(GEMINI_API_KEY)}`);
 });

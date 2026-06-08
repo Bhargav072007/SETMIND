@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 
-const MODEL = 'nvidia/Nemotron-3-Nano-30B-A3B';
+const MODEL = 'gemini-2.0-flash';
 const GENRES = ['techno', 'house', 'dnb', 'hip-hop', 'afrobeats', 'pop', 'ambient', 'other'];
 const KEYS = ['Cm', 'C', 'Dm', 'D', 'Em', 'E', 'Fm', 'F', 'Gm', 'G', 'Am', 'A', 'Bm', 'B'];
 const TABS = ['DECKS', 'CROWD AI', 'SET PLAN', 'LIBRARY'];
@@ -541,7 +541,7 @@ function LandingPage() {
       <section className="hero-block">
         <div className="hero-layout">
           <div className="hero-copy-column">
-            <p className="eyebrow">POWERED BY NVIDIA NEMOTRON · CRUSOE CLOUD</p>
+            <p className="eyebrow">POWERED BY GOOGLE GEMINI AI</p>
             <h1>
               <span>The AI brain</span>
               <span>professional DJs actually use</span>
@@ -650,12 +650,12 @@ function LandingPage() {
       <section className="bottom-cta">
         <h2>Ready to elevate your sets?</h2>
         <Link to="/app" className="button-accent">Launch SETMIND</Link>
-        <p>Free during hackathon · Powered by Crusoe Cloud</p>
+        <p>Powered by Google Gemini AI</p>
       </section>
 
       <footer className="landing-footer">
         <span>SETMIND © 2026</span>
-        <span>Built for the Crusoe + Lark Hackathon</span>
+        <span>AI-Powered DJ Platform</span>
       </footer>
     </div>
   );
@@ -721,8 +721,7 @@ function AppHeader({ activeTab, setActiveTab, status }) {
           ))}
         </nav>
         <div className="header-right">
-          <StatusDot label="Nemotron" tone={status.nemotron ? 'green' : 'red'} />
-          <StatusDot label="Lark" tone={status.lark ? 'green' : 'grey'} />
+          <StatusDot label="Gemini" tone={status.gemini ? 'green' : 'red'} />
           <Link to="/" className="home-link">Back to Home</Link>
         </div>
       </div>
@@ -1469,7 +1468,7 @@ function CrowdTab({ deckA, deckB, energy, setEnergy, onLoadSmart }) {
             <label>CROWD ANALYSIS</label>
             <h3>Read the room</h3>
           </div>
-          <span className="tiny-note">Powered by Nemotron</span>
+          <span className="tiny-note">Powered by Gemini AI</span>
         </div>
 
         <div className="field-group">
@@ -1511,7 +1510,7 @@ function CrowdTab({ deckA, deckB, energy, setEnergy, onLoadSmart }) {
 
       <main className="glass-card result-card">
         {error && <p className="error-copy">{error}</p>}
-        {!error && !result && <div className="empty-card large">Fill in the crowd details and run analysis. Nemotron will read the room for you.</div>}
+        {!error && !result && <div className="empty-card large">Fill in the crowd details and run analysis. Gemini AI will read the room for you.</div>}
         {result && (
           <>
             <div className="result-top">
@@ -1565,7 +1564,6 @@ function SetPlanTab({ onLoadSmart }) {
   });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [workflowStatus, setWorkflowStatus] = useState('');
   const [error, setError] = useState('');
 
   async function generate() {
@@ -1594,15 +1592,6 @@ function SetPlanTab({ onLoadSmart }) {
     URL.revokeObjectURL(url);
   }
 
-  async function bootstrap() {
-    setWorkflowStatus('Creating workflow...');
-    try {
-      const response = await api('/api/lark/bootstrap', { method: 'POST', body: JSON.stringify({}) });
-      setWorkflowStatus(response.success ? 'Lark workflows created successfully.' : 'Lark workflow creation failed.');
-    } catch (workflowError) {
-      setWorkflowStatus(workflowError.message);
-    }
-  }
 
   return (
     <section className="tab-shell split-layout plan-layout">
@@ -1642,13 +1631,13 @@ function SetPlanTab({ onLoadSmart }) {
           <button className={form.openerOrHeadliner === 'opener' ? 'pill-button active' : 'pill-button'} onClick={() => setForm({ ...form, openerOrHeadliner: 'opener' })}>Opener</button>
           <button className={form.openerOrHeadliner === 'headliner' ? 'pill-button active' : 'pill-button'} onClick={() => setForm({ ...form, openerOrHeadliner: 'headliner' })}>Headliner</button>
         </div>
-        <button className="button-accent tall-button" onClick={generate}>{loading ? 'Nemotron is building your set...' : 'GENERATE SET PLAN'}</button>
+        <button className="button-accent tall-button" onClick={generate}>{loading ? 'Gemini is building your set...' : 'GENERATE SET PLAN'}</button>
         {result && <button className="button-surface wide-button" onClick={exportPlan}>Export .txt</button>}
       </aside>
 
       <main className="glass-card result-card">
         {error && <p className="error-copy">{error}</p>}
-        {!error && !result && <div className="empty-card large">Describe your gig and Nemotron will architect your full set.</div>}
+        {!error && !result && <div className="empty-card large">Describe your gig and Gemini AI will architect your full set.</div>}
         {result && (
           <>
             <h2>{result.setTitle}</h2>
@@ -1688,8 +1677,6 @@ function SetPlanTab({ onLoadSmart }) {
               </div>
             </section>
 
-            <button className="button-accent" onClick={bootstrap}>Create Lark Workflow</button>
-            {workflowStatus && <p className="muted-copy">{workflowStatus}</p>}
           </>
         )}
       </main>
@@ -2297,7 +2284,7 @@ function DJApp() {
   const [deckA, setDeckA] = useState(makeDeck('A', STARTER_TRACKS[0]));
   const [deckB, setDeckB] = useState(makeDeck('B', STARTER_TRACKS[1]));
   const [library, setLibrary] = useState([]);
-  const [status, setStatus] = useState({ nemotron: false, lark: false, error: '' });
+  const [status, setStatus] = useState({ gemini: false, error: '' });
   const [dismissed, setDismissed] = useState(false);
   const [energy, setEnergy] = useState(7);
   const [history, setHistory] = useState([]);
@@ -2307,12 +2294,11 @@ function DJApp() {
       try {
         const result = await api('/api/health');
         setStatus({
-          nemotron: Boolean(result.nemotron),
-          lark: Boolean(result.lark),
+          gemini: Boolean(result.gemini),
           error: result.error || ''
         });
       } catch (error) {
-        setStatus({ nemotron: false, lark: false, error: error.message });
+        setStatus({ gemini: false, error: error.message });
       }
     }
 
@@ -2340,9 +2326,9 @@ function DJApp() {
     <div className="app-shell">
       <div className="app-aurora" />
       <AppHeader activeTab={activeTab} setActiveTab={setActiveTab} status={status} />
-      {!status.nemotron && !dismissed && (
+      {!status.gemini && !dismissed && (
         <div className="warning-banner">
-          <span>Nemotron not connected - check your Crusoe API key. Model: {MODEL}</span>
+          <span>Gemini AI not connected — check your GEMINI_API_KEY. Model: {MODEL}</span>
           <button onClick={() => setDismissed(true)}>x</button>
         </div>
       )}

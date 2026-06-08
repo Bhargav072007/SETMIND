@@ -39,7 +39,7 @@ function EmptyState() {
         <path d="M16 30L24 16L32 30H16Z" fill="#1a1a1a"/>
       </svg>
       <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:14, color:'#333' }}>Describe your gig and Nemotron</div>
+        <div style={{ fontSize:14, color:'#333' }}>Describe your gig and Gemini AI</div>
         <div style={{ fontSize:14, color:'#333' }}>will architect your full set</div>
       </div>
     </div>
@@ -56,8 +56,6 @@ export default function SetPlanTab() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [larkLoading, setLarkLoading] = useState(false);
-  const [larkResult, setLarkResult] = useState(null);
 
   const generate = async () => {
     setLoading(true);
@@ -94,16 +92,6 @@ export default function SetPlanTab() {
     a.click();
   };
 
-  const bootstrapLark = async () => {
-    setLarkLoading(true);
-    setLarkResult(null);
-    try {
-      const res = await fetch('/api/lark/bootstrap', { method:'POST' });
-      const data = await res.json();
-      setLarkResult(data.success ? 'Lark workflows created ✓' : `Error: ${data.error}`);
-    } catch (e) { setLarkResult('Could not reach server'); }
-    setLarkLoading(false);
-  };
 
   return (
     <div style={{ height:'100%', display:'flex', gap:8, padding:8, overflow:'hidden' }}>
@@ -157,7 +145,7 @@ export default function SetPlanTab() {
 
         <div style={{ marginTop:'auto', display:'flex', flexDirection:'column', gap:8 }}>
           <button className="btn-red" onClick={generate} disabled={loading}>
-            {loading ? <><span className="spinner" />&nbsp;Nemotron is building your set…</> : 'Generate Set Plan'}
+            {loading ? <><span className="spinner" />&nbsp;Gemini is building your set…</> : 'Generate Set Plan'}
           </button>
           {error && <div style={{ fontSize:11, color:'#fc3c44', padding:'6px 8px', background:'rgba(252,60,68,0.08)', borderRadius:4 }}>{error}</div>}
           {result && (
@@ -175,7 +163,7 @@ export default function SetPlanTab() {
         {loading && (
           <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:12 }}>
             <span className="spinner" style={{ width:24, height:24 }} />
-            <span style={{ fontSize:13, color:'#555' }}>Nemotron is building your set…</span>
+            <span style={{ fontSize:13, color:'#555' }}>Gemini is building your set…</span>
           </div>
         )}
 
@@ -223,14 +211,6 @@ export default function SetPlanTab() {
             </div>
           )}
 
-          {/* Lark bootstrap */}
-          <div style={{ marginTop:'auto', display:'flex', flexDirection:'column', gap:6 }}>
-            <button onClick={bootstrapLark} disabled={larkLoading}
-              style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:7, padding:'9px 0', color:'#888', fontSize:12, fontWeight:600, cursor:'pointer', width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-              {larkLoading ? <><span className="spinner" />&nbsp;Creating…</> : '⚡ Create Lark Workflow'}
-            </button>
-            {larkResult && <div style={{ fontSize:11, color: larkResult.includes('✓') ? '#22c55e' : '#fc3c44', textAlign:'center' }}>{larkResult}</div>}
-          </div>
         </>}
       </div>
     </div>

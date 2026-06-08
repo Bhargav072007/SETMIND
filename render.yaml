@@ -9,13 +9,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20.11.1
-      - key: CRUSOE_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
-      - key: CRUSOE_API_URL
-        value: https://managed-inference-api-proxy.crusoecloud.com/v1/chat/completions
-      - key: CRUSOE_MODEL
-        value: nvidia/Nemotron-3-Nano-30B-A3B
-      - key: GETLARK_API_KEY
-        sync: false
-      - key: GETLARK_MCP_URL
-        value: https://api.getlark.ai/mcp
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
