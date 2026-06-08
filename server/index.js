@@ -93,9 +93,9 @@ app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
     } catch (err) {
       lastErr = err;
       console.error(`Health check failed for ${model}:`, err.message);
-      const msg = String(err.message || '');
-      const gone = msg.includes('404') || msg.includes('no longer available') || msg.includes('not found');
-      const busy = msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand');
+      const msg = String(err.message || '').toLowerCase();
+      const gone = err.status === 404 || err.status === 400 || msg.includes('404') || msg.includes('no longer available') || msg.includes('not found') || msg.includes('not exist') || msg.includes('deprecated');
+      const busy = err.status === 503 || err.status === 429 || msg.includes('503') || msg.includes('429') || msg.includes('unavailable') || msg.includes('high demand') || msg.includes('overloaded') || msg.includes('resource_exhausted');
       if (!gone && !busy) break; // auth error, bad key — no point trying other models
     }
   }

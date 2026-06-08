@@ -44,14 +44,30 @@ function parseJsonPayload(rawText) {
 }
 
 function isRetryable(error) {
-  const msg = String(error?.message || '');
-  return msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand') || msg.includes('overloaded');
+  if (error?.status === 503 || error?.status === 429) return true;
+  const msg = String(error?.message || '').toLowerCase();
+  return (
+    msg.includes('503') ||
+    msg.includes('429') ||
+    msg.includes('unavailable') ||
+    msg.includes('high demand') ||
+    msg.includes('overloaded') ||
+    msg.includes('resource_exhausted')
+  );
 }
 
 function isModelGone(error) {
-  const msg = String(error?.message || '');
-  return msg.includes('404') || msg.includes('not found') || msg.includes('no longer available') || msg.includes('deprecated');
+  if (error?.status === 404 || error?.status === 400) return true; // 400 or 404 status codes indicate model not found/bad request
+  const msg = String(error?.message || '').toLowerCase();
+  return (
+    msg.includes('404') ||
+    msg.includes('not found') ||
+    msg.includes('not exist') ||
+    msg.includes('no longer available') ||
+    msg.includes('deprecated')
+  );
 }
+
 
 async function callModel(ai, model, userPrompt, maxTokens) {
   const response = await ai.models.generateContent({
