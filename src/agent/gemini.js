@@ -5,8 +5,9 @@ const { GoogleGenAI } = require('@google/genai');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-// Fallback chain: 2.5-flash (primary, fast) → 1.5-flash (stable fallback)
-const FALLBACK_MODELS = ['gemini-1.5-flash'];
+// Fallback chain — all CURRENTLY-STABLE, fast models (1.5 family is shut down):
+//   2.5-flash (primary) → 2.5-flash-lite (fastest/cheapest) → gemini-flash-latest (alias safety net)
+const FALLBACK_MODELS = ['gemini-2.5-flash-lite', 'gemini-flash-latest'];
 
 function resolveKey(overrideKey) {
   const key = overrideKey || GEMINI_API_KEY;
@@ -125,9 +126,10 @@ async function callModel(ai, model, userPrompt, maxTokens) {
     responseMimeType: 'application/json'
   };
 
-  // Gemini 2.5 models "think" before answering, which silently consumes the
+  // Gemini flash models "think" before answering, which silently consumes the
   // output-token budget and truncates the JSON. Disable thinking for speed + reliability.
-  if (model.includes('2.5')) {
+  // Covers 2.5-flash, 2.5-flash-lite, gemini-flash-latest, 3.x flash, etc.
+  if (model.includes('flash')) {
     config.thinkingConfig = { thinkingBudget: 0 };
   }
 
@@ -148,7 +150,8 @@ async function callGemini(userPrompt, maxTokens = 800, overrideKey) {
   const modelLadder = [
     { model: GEMINI_MODEL,       wait: 0    },  // gemini-2.5-flash attempt 1
     { model: GEMINI_MODEL,       wait: 1500 },  // gemini-2.5-flash attempt 2 (if 503)
-    { model: FALLBACK_MODELS[0], wait: 1000 },  // gemini-1.5-flash (last resort)
+    { model: FALLBACK_MODELS[0], wait: 1000 },  // gemini-2.5-flash-lite (fast fallback)
+    { model: FALLBACK_MODELS[1], wait: 1000 },  // gemini-flash-latest (alias safety net)
   ];
 
   let lastError = null;

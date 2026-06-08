@@ -82,7 +82,7 @@ app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
   const { GoogleGenAI } = require('@google/genai');
   const ai = new GoogleGenAI({ apiKey });
   // Use fast models first for key validation — never use the primary (large) model for health checks
-  const healthModels = ['gemini-1.5-flash', 'gemini-2.5-flash'];
+  const healthModels = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
   let lastErr = null;
 
   async function tryModel(model) {
