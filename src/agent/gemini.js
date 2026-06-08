@@ -32,15 +32,57 @@ function stripJsonFences(text) {
     .trim();
 }
 
+function repairTruncatedJson(text) {
+  // Attempt to close a JSON object/array that was cut off mid-stream.
+  let str = String(text || '').trim();
+
+  // Walk the string tracking string-literal state and the open-delimiter stack,
+  // so we can close brackets/braces in the correct nesting order.
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of str) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+
+  // Close an unterminated string literal
+  if (inString) str += '"';
+  // Drop a dangling comma or partial key/value separator left at the end
+  str = str.replace(/,\s*$/, '').replace(/:\s*$/, ': null');
+  // Close open delimiters in reverse (innermost first)
+  for (let i = stack.length - 1; i >= 0; i--) {
+    str += stack[i] === '{' ? '}' : ']';
+  }
+  return str;
+}
+
 function parseJsonPayload(rawText) {
   const cleaned = stripJsonFences(rawText);
+  // 1. Try direct parse
   try {
     return JSON.parse(cleaned);
-  } catch {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Gemini returned invalid JSON');
-    return JSON.parse(match[0]);
+  } catch {}
+  // 2. Try extracting the largest {...} block
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      return JSON.parse(match[0]);
+    } catch {}
   }
+  // 3. Try repairing a truncated object (cut off by token limit)
+  const base = match ? match[0] : cleaned;
+  try {
+    return JSON.parse(repairTruncatedJson(base));
+  } catch {}
+  throw new Error('Gemini returned invalid JSON');
 }
 
 function isRetryable(error) {
@@ -54,6 +96,12 @@ function isRetryable(error) {
     msg.includes('overloaded') ||
     msg.includes('resource_exhausted')
   );
+}
+
+function isBadResponse(error) {
+  // Empty or unparseable response — worth retrying on another model/attempt
+  const msg = String(error?.message || '').toLowerCase();
+  return msg.includes('invalid json') || msg.includes('empty response');
 }
 
 function isModelGone(error) {
@@ -70,18 +118,25 @@ function isModelGone(error) {
 
 
 async function callModel(ai, model, userPrompt, maxTokens) {
-  const response = await ai.models.generateContent({
-    model,
-    contents: userPrompt,
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      maxOutputTokens: maxTokens,
-      temperature: 0.7,
-      responseMimeType: 'application/json'
-    }
-  });
+  const config = {
+    systemInstruction: SYSTEM_INSTRUCTION,
+    maxOutputTokens: maxTokens,
+    temperature: 0.7,
+    responseMimeType: 'application/json'
+  };
+
+  // Gemini 2.5 models "think" before answering, which silently consumes the
+  // output-token budget and truncates the JSON. Disable thinking for speed + reliability.
+  if (model.includes('2.5')) {
+    config.thinkingConfig = { thinkingBudget: 0 };
+  }
+
+  const response = await ai.models.generateContent({ model, contents: userPrompt, config });
   const text = response.text;
-  if (!text) throw new Error('Gemini returned empty response');
+  if (!text) {
+    const reason = response?.candidates?.[0]?.finishReason || 'unknown';
+    throw new Error(`Gemini returned empty response (finishReason: ${reason})`);
+  }
   return parseJsonPayload(text);
 }
 
@@ -113,6 +168,11 @@ async function callGemini(userPrompt, maxTokens = 800, overrideKey) {
         console.warn(`[gemini] model ${model} unavailable, skipping to next`);
         // Skip the second attempt for primary if model is 404
         if (i === 0) i += 1;
+        continue;
+      }
+      // Empty/unparseable responses: retry on the next model attempt
+      if (isBadResponse(error)) {
+        console.warn('[gemini] bad/empty response, retrying on next attempt');
         continue;
       }
       // For non-retryable errors (bad key, quota, bad request), give up immediately
