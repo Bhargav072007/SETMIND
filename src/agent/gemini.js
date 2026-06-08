@@ -6,6 +6,12 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
+function resolveKey(overrideKey) {
+  const key = overrideKey || GEMINI_API_KEY;
+  if (!key) throw new Error('No Gemini API key provided. Add one in the app settings or set GEMINI_API_KEY on the server.');
+  return key;
+}
+
 const SYSTEM_INSTRUCTION = [
   'You are SETMIND, a professional AI DJ workflow agent for club and festival DJs.',
   'You have these capabilities:',
@@ -18,12 +24,9 @@ const SYSTEM_INSTRUCTION = [
   'Never include markdown, code fences, preamble, commentary, or explanation outside JSON.'
 ].join('\n');
 
-let _client = null;
-
-function getClient() {
-  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is missing from environment variables.');
-  if (!_client) _client = new GoogleGenerativeAI(GEMINI_API_KEY);
-  return _client;
+function getClient(overrideKey) {
+  const key = resolveKey(overrideKey);
+  return new GoogleGenerativeAI(key);
 }
 
 function stripJsonFences(text) {
@@ -49,8 +52,8 @@ function parseJsonPayload(rawText) {
   }
 }
 
-async function callGemini(userPrompt, maxTokens = 800) {
-  const client = getClient();
+async function callGemini(userPrompt, maxTokens = 800, overrideKey) {
+  const client = getClient(overrideKey);
   const model = client.getGenerativeModel({
     model: GEMINI_MODEL,
     systemInstruction: SYSTEM_INSTRUCTION,
@@ -73,7 +76,7 @@ async function callGemini(userPrompt, maxTokens = 800) {
   throw new Error(`Gemini failed after 3 attempts: ${lastError.message}`);
 }
 
-async function planSet(params) {
+async function planSet(params, apiKey) {
   const prompt = [
     '[CAPABILITY: SET_PLAN]',
     'Input:',
@@ -82,10 +85,10 @@ async function planSet(params) {
     '{"setTitle":"string","energyArc":[{"phase":"string","duration":"string","bpmRange":"string","energy":1,"description":"string","exampleTracks":["real song","real song"]}],"crowdReadingTips":["string","string","string"],"emergencyPivots":[{"signal":"string","action":"string"},{"signal":"string","action":"string"}]}',
     'energyArc must contain exactly 5 phases. Keep every field concise. Descriptions under 18 words.'
   ].join('\n');
-  return callGemini(prompt, 1600);
+  return callGemini(prompt, 1600, apiKey);
 }
 
-async function crowdPulse(params) {
+async function crowdPulse(params, apiKey) {
   const prompt = [
     '[CAPABILITY: CROWD_PULSE]',
     'Input:',
@@ -94,10 +97,10 @@ async function crowdPulse(params) {
     '{"crowdState":"one word","momentumScore":1,"analysis":"two sentences","nextThreeTracks":[{"track":"Artist - Title","bpm":128,"reason":"string"}],"energyDirective":"HOLD","urgentAlert":null,"transitionTip":"string"}',
     'nextThreeTracks must contain exactly 3 items. energyDirective must be HOLD, PUSH, PULL BACK, or PIVOT.'
   ].join('\n');
-  return callGemini(prompt, 650);
+  return callGemini(prompt, 650, apiKey);
 }
 
-async function trackBrain(params) {
+async function trackBrain(params, apiKey) {
   const prompt = [
     '[CAPABILITY: TRACK_BRAIN]',
     'Input:',
@@ -106,10 +109,10 @@ async function trackBrain(params) {
     '{"topPicks":[{"track":"Artist - Title","compatibilityScore":1,"reason":"string"}],"libraryGaps":["string"],"powerSequence":["track","track","track","track","track"],"avoidNow":["string"]}',
     'topPicks must contain exactly 3 items.'
   ].join('\n');
-  return callGemini(prompt, 650);
+  return callGemini(prompt, 650, apiKey);
 }
 
-async function promptDj(params) {
+async function promptDj(params, apiKey) {
   const prompt = [
     '[CAPABILITY: DJ_PROMPT]',
     'Interpret this free-form DJ request and return practical playlist changes.',
@@ -119,10 +122,10 @@ async function promptDj(params) {
     '{"response":"string","suggestedTracks":[{"track":"Track Title - Artist","bpm":130,"reason":"string"}],"action":"PUSH"}',
     'Suggest 2 to 4 tracks. action must be one of PUSH, HOLD, PULL BACK, PIVOT, SEARCH.'
   ].join('\n');
-  return callGemini(prompt, 700);
+  return callGemini(prompt, 700, apiKey);
 }
 
-async function planMixTransition(params) {
+async function planMixTransition(params, apiKey) {
   const prompt = [
     '[CAPABILITY: MIX_ENGINE]',
     'You are planning a real DJ transition between two loaded decks.',
@@ -144,7 +147,7 @@ async function planMixTransition(params) {
     '- reasoning must be concise and practical.',
     '- targetBpm should be a sensible transition BPM based on both tracks.'
   ].join('\n');
-  return callGemini(prompt, 900);
+  return callGemini(prompt, 900, apiKey);
 }
 
 module.exports = {

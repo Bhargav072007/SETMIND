@@ -1,5 +1,102 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const GEMINI_KEY_STORAGE = 'setmind_gemini_api_key';
+function getStoredApiKey() {
+  try { return localStorage.getItem(GEMINI_KEY_STORAGE) || ''; } catch { return ''; }
+}
+
+function ApiKeyPanel({ onClose, onSave }) {
+  const [val, setVal] = React.useState(() => getStoredApiKey());
+  const [visible, setVisible] = React.useState(false);
+
+  function save() {
+    try { localStorage.setItem(GEMINI_KEY_STORAGE, val.trim()); } catch {}
+    onSave();
+    onClose();
+  }
+
+  function clear() {
+    setVal('');
+    try { localStorage.removeItem(GEMINI_KEY_STORAGE); } catch {}
+    onSave();
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }} onClick={onClose}>
+      <div style={{
+        background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 16, padding: '28px 28px 24px', width: 420, maxWidth: '90vw',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.6)'
+      }} onClick={(e) => e.stopPropagation()}>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '-0.3px' }}>Gemini API Key</div>
+            <div style={{ fontSize: 12, color: '#555', marginTop: 3 }}>Stored locally in your browser only</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#555', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 4 }}>✕</button>
+        </div>
+
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <input
+            type={visible ? 'text' : 'password'}
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            placeholder="AIza..."
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8, padding: '11px 44px 11px 14px',
+              color: '#fff', fontSize: 13, fontFamily: 'monospace', outline: 'none'
+            }}
+          />
+          <button onClick={() => setVisible(v => !v)} style={{
+            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13
+          }}>{visible ? 'hide' : 'show'}</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button onClick={save} style={{
+            flex: 1, background: '#fc3c44', color: '#fff', border: 'none',
+            borderRadius: 8, padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer'
+          }}>Save Key</button>
+          {val && (
+            <button onClick={clear} style={{
+              background: 'rgba(255,255,255,0.05)', color: '#888', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8, padding: '10px 14px', fontSize: 13, cursor: 'pointer'
+            }}>Clear</button>
+          )}
+        </div>
+
+        <a
+          href="https://aistudio.google.com/app/apikey"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 8, padding: '9px 0', color: '#888', fontSize: 12,
+            fontWeight: 600, textDecoration: 'none'
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Get a free API key from Google AI Studio
+        </a>
+      </div>
+    </div>
+  );
+}
 import DecksTab from '../components/DecksTab.jsx';
 import CrowdAITab from '../components/CrowdAITab.jsx';
 import SetPlanTab from '../components/SetPlanTab.jsx';
@@ -40,7 +137,10 @@ export default function DJApp() {
   // Poll health on mount and every 30s
   const checkHealth = useCallback(async () => {
     try {
-      const res = await fetch('/api/health');
+      const apiKey = getStoredApiKey();
+      const res = await fetch('/api/health', {
+        headers: apiKey ? { 'X-Gemini-Api-Key': apiKey } : {}
+      });
       const data = await res.json();
       setHealth(data);
     } catch {
@@ -82,6 +182,14 @@ export default function DJApp() {
     });
     addToHistory(track, deckId);
   }, [updateDeck, addToHistory]);
+
+  const [showKeyPanel, setShowKeyPanel] = useState(false);
+  const [hasKey, setHasKey] = useState(() => Boolean(getStoredApiKey()));
+
+  function onKeySaved() {
+    setHasKey(Boolean(getStoredApiKey()));
+    checkHealth();
+  }
 
   const geminiOk = health.gemini === true;
   const geminiUnknown = health.gemini === null;
@@ -131,11 +239,26 @@ export default function DJApp() {
             ))}
           </div>
 
-          {/* Right: status + back */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <StatusDot label="Gemini" ok={geminiOk} unknown={geminiUnknown} />
-            </div>
+          {/* Right: status + key + back */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <StatusDot label="Gemini" ok={geminiOk} unknown={geminiUnknown} />
+            <button
+              onClick={() => setShowKeyPanel(true)}
+              style={{
+                background: hasKey ? 'rgba(255,255,255,0.05)' : 'rgba(252,60,68,0.12)',
+                border: hasKey ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(252,60,68,0.3)',
+                borderRadius: 7, padding: '4px 10px',
+                color: hasKey ? '#666' : '#fc3c44',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.4px',
+                display: 'flex', alignItems: 'center', gap: 5
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              {hasKey ? 'API Key' : 'Add Key'}
+            </button>
             <button
               onClick={() => navigate('/')}
               style={{ background: 'none', border: 'none', color: '#444', fontSize: 11, cursor: 'pointer', letterSpacing: '0.5px' }}
@@ -189,6 +312,7 @@ export default function DJApp() {
           )}
         </div>
       </div>
+      {showKeyPanel && <ApiKeyPanel onClose={() => setShowKeyPanel(false)} onSave={onKeySaved} />}
     </div>
   );
 }

@@ -89,11 +89,19 @@ function formatSeconds(total) {
   return `${minutes}:${seconds}`;
 }
 
+const GEMINI_KEY_STORAGE = 'setmind_gemini_api_key';
+
+function getStoredApiKey() {
+  try { return localStorage.getItem(GEMINI_KEY_STORAGE) || ''; } catch { return ''; }
+}
+
 function api(path, options = {}) {
+  const apiKey = getStoredApiKey();
   return fetch(path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(apiKey ? { 'X-Gemini-Api-Key': apiKey } : {}),
       ...(options.headers || {})
     }
   }).then(async (response) => {
@@ -708,25 +716,146 @@ function StatusDot({ label, tone }) {
   );
 }
 
-function AppHeader({ activeTab, setActiveTab, status }) {
+function ApiKeyPanel({ onClose, onSave }) {
+  const [val, setVal] = React.useState(() => getStoredApiKey());
+  const [visible, setVisible] = React.useState(false);
+
+  function save() {
+    try { localStorage.setItem(GEMINI_KEY_STORAGE, val.trim()); } catch {}
+    onSave();
+    onClose();
+  }
+
+  function clear() {
+    setVal('');
+    try { localStorage.removeItem(GEMINI_KEY_STORAGE); } catch {}
+    onSave();
+  }
+
   return (
-    <header className="app-header">
-      <div className="header-row">
-        <Link to="/" className="app-logo-link"><BrandMark /></Link>
-        <nav className="tab-strip">
-          {TABS.map((tab) => (
-            <button key={tab} className={activeTab === tab ? 'tab-chip active' : 'tab-chip'} onClick={() => setActiveTab(tab)}>
-              {tab}
-            </button>
-          ))}
-        </nav>
-        <div className="header-right">
-          <StatusDot label="Gemini" tone={status.gemini ? 'green' : 'red'} />
-          <Link to="/" className="home-link">Back to Home</Link>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    }} onClick={onClose}>
+      <div style={{
+        background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 16, padding: '28px 28px 24px', width: 420, maxWidth: '90vw',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.6)'
+      }} onClick={(e) => e.stopPropagation()}>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '-0.3px' }}>Gemini API Key</div>
+            <div style={{ fontSize: 12, color: '#555', marginTop: 3 }}>Stored locally in your browser — never sent to our servers without your request</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#555', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 4 }}>✕</button>
         </div>
+
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <input
+            type={visible ? 'text' : 'password'}
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            placeholder="AIza..."
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8, padding: '11px 44px 11px 14px',
+              color: '#fff', fontSize: 13, fontFamily: 'monospace',
+              outline: 'none'
+            }}
+          />
+          <button onClick={() => setVisible(v => !v)} style={{
+            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 13
+          }}>{visible ? 'hide' : 'show'}</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button onClick={save} style={{
+            flex: 1, background: '#fc3c44', color: '#fff', border: 'none',
+            borderRadius: 8, padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer'
+          }}>Save Key</button>
+          {val && (
+            <button onClick={clear} style={{
+              background: 'rgba(255,255,255,0.05)', color: '#888', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8, padding: '10px 14px', fontSize: 13, cursor: 'pointer'
+            }}>Clear</button>
+          )}
+        </div>
+
+        <a
+          href="https://aistudio.google.com/app/apikey"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 8, padding: '9px 0', color: '#888', fontSize: 12,
+            fontWeight: 600, textDecoration: 'none', transition: 'border-color 0.15s'
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Get a free API key from Google AI Studio
+        </a>
       </div>
-      <div className="header-wave" />
-    </header>
+    </div>
+  );
+}
+
+function AppHeader({ activeTab, setActiveTab, status, onRefreshHealth }) {
+  const [showKeyPanel, setShowKeyPanel] = React.useState(false);
+  const hasKey = Boolean(getStoredApiKey());
+
+  return (
+    <>
+      <header className="app-header">
+        <div className="header-row">
+          <Link to="/" className="app-logo-link"><BrandMark /></Link>
+          <nav className="tab-strip">
+            {TABS.map((tab) => (
+              <button key={tab} className={activeTab === tab ? 'tab-chip active' : 'tab-chip'} onClick={() => setActiveTab(tab)}>
+                {tab}
+              </button>
+            ))}
+          </nav>
+          <div className="header-right">
+            <StatusDot label="Gemini" tone={status.gemini ? 'green' : 'red'} />
+            <button
+              onClick={() => setShowKeyPanel(true)}
+              style={{
+                background: hasKey ? 'rgba(255,255,255,0.05)' : 'rgba(252,60,68,0.12)',
+                border: hasKey ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(252,60,68,0.3)',
+                borderRadius: 7, padding: '5px 11px',
+                color: hasKey ? '#888' : '#fc3c44',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.4px',
+                display: 'flex', alignItems: 'center', gap: 6
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              {hasKey ? 'API Key' : 'Add API Key'}
+            </button>
+            <Link to="/" className="home-link">Back to Home</Link>
+          </div>
+        </div>
+        <div className="header-wave" />
+      </header>
+      {showKeyPanel && (
+        <ApiKeyPanel
+          onClose={() => setShowKeyPanel(false)}
+          onSave={onRefreshHealth}
+        />
+      )}
+    </>
   );
 }
 
@@ -2289,19 +2418,16 @@ function DJApp() {
   const [energy, setEnergy] = useState(7);
   const [history, setHistory] = useState([]);
 
-  useEffect(() => {
-    async function checkHealth() {
-      try {
-        const result = await api('/api/health');
-        setStatus({
-          gemini: Boolean(result.gemini),
-          error: result.error || ''
-        });
-      } catch (error) {
-        setStatus({ gemini: false, error: error.message });
-      }
+  async function checkHealth() {
+    try {
+      const result = await api('/api/health');
+      setStatus({ gemini: Boolean(result.gemini), error: result.error || '' });
+    } catch (error) {
+      setStatus({ gemini: false, error: error.message });
     }
+  }
 
+  useEffect(() => {
     checkHealth();
     const timer = setInterval(checkHealth, 30000);
     return () => clearInterval(timer);
@@ -2325,7 +2451,7 @@ function DJApp() {
   return (
     <div className="app-shell">
       <div className="app-aurora" />
-      <AppHeader activeTab={activeTab} setActiveTab={setActiveTab} status={status} />
+      <AppHeader activeTab={activeTab} setActiveTab={setActiveTab} status={status} onRefreshHealth={checkHealth} />
       {!status.gemini && !dismissed && (
         <div className="warning-banner">
           <span>Gemini AI not connected — check your GEMINI_API_KEY. Model: {MODEL}</span>

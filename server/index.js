@@ -24,6 +24,10 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(webBuildPath));
 
+function getRequestApiKey(req) {
+  return req.headers['x-gemini-api-key'] || GEMINI_API_KEY || '';
+}
+
 function asyncRoute(handler) {
   return async function routeHandler(req, res) {
     try {
@@ -70,22 +74,21 @@ function normalizeItunesTrack(item, fallbackGenre) {
 }
 
 app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
-  const geminiConfigured = Boolean(GEMINI_API_KEY);
-  if (!geminiConfigured) {
-    res.json({ gemini: false, error: 'GEMINI_API_KEY is missing.', model: GEMINI_MODEL, geminiConfigured: false });
+  const apiKey = getRequestApiKey(req);
+  if (!apiKey) {
+    res.json({ gemini: false, error: 'No API key configured. Enter your Gemini API key in the app.', model: GEMINI_MODEL, geminiConfigured: false });
     return;
   }
-
   try {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const client = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const client = new GoogleGenerativeAI(apiKey);
     const model = client.getGenerativeModel({ model: GEMINI_MODEL });
     const result = await model.generateContent('ping');
     const text = result.response.text();
     res.json({ gemini: Boolean(text), model: GEMINI_MODEL, geminiConfigured: true });
   } catch (error) {
     console.error('Gemini health check failed:', error);
-    res.json({ gemini: false, error: error.message, model: GEMINI_MODEL, geminiConfigured });
+    res.json({ gemini: false, error: error.message, model: GEMINI_MODEL, geminiConfigured: Boolean(apiKey) });
   }
 }));
 
@@ -102,11 +105,11 @@ app.get('/api/search', asyncRoute(async function searchRoute(req, res) {
   res.json((data.results || []).map((item) => normalizeItunesTrack(item, genre)));
 }));
 
-app.post('/api/plan', asyncRoute(async (req, res) => res.json(await planSet(req.body || {}))));
-app.post('/api/pulse', asyncRoute(async (req, res) => res.json(await crowdPulse(req.body || {}))));
-app.post('/api/brain', asyncRoute(async (req, res) => res.json(await trackBrain(req.body || {}))));
-app.post('/api/prompt', asyncRoute(async (req, res) => res.json(await promptDj(req.body || {}))));
-app.post('/api/mixplan', asyncRoute(async (req, res) => res.json(await planMixTransition(req.body || {}))));
+app.post('/api/plan', asyncRoute(async (req, res) => res.json(await planSet(req.body || {}, getRequestApiKey(req)))));
+app.post('/api/pulse', asyncRoute(async (req, res) => res.json(await crowdPulse(req.body || {}, getRequestApiKey(req)))));
+app.post('/api/brain', asyncRoute(async (req, res) => res.json(await trackBrain(req.body || {}, getRequestApiKey(req)))));
+app.post('/api/prompt', asyncRoute(async (req, res) => res.json(await promptDj(req.body || {}, getRequestApiKey(req)))));
+app.post('/api/mixplan', asyncRoute(async (req, res) => res.json(await planMixTransition(req.body || {}, getRequestApiKey(req)))));
 
 app.get('*', function spaFallback(req, res) {
   const indexPath = path.join(webBuildPath, 'index.html');
@@ -118,5 +121,5 @@ app.get('*', function spaFallback(req, res) {
 app.listen(PORT, function onListen() {
   console.log(`SETMIND server running at http://localhost:${PORT}`);
   console.log(`Model: ${GEMINI_MODEL}`);
-  console.log(`Gemini key configured: ${Boolean(GEMINI_API_KEY)}`);
+  console.log(`Server-side Gemini key configured: ${Boolean(GEMINI_API_KEY)}`);
 });
