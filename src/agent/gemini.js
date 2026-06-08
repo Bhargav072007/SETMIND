@@ -1,10 +1,10 @@
 'use strict';
 
 require('dotenv').config();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 function resolveKey(overrideKey) {
   const key = overrideKey || GEMINI_API_KEY;
@@ -23,11 +23,6 @@ const SYSTEM_INSTRUCTION = [
   'Reason step by step internally, then respond ONLY with valid JSON.',
   'Never include markdown, code fences, preamble, commentary, or explanation outside JSON.'
 ].join('\n');
-
-function getClient(overrideKey) {
-  const key = resolveKey(overrideKey);
-  return new GoogleGenerativeAI(key);
-}
 
 function stripJsonFences(text) {
   return String(text || '')
@@ -53,18 +48,22 @@ function parseJsonPayload(rawText) {
 }
 
 async function callGemini(userPrompt, maxTokens = 800, overrideKey) {
-  const client = getClient(overrideKey);
-  const model = client.getGenerativeModel({
-    model: GEMINI_MODEL,
-    systemInstruction: SYSTEM_INSTRUCTION,
-    generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 }
-  });
+  const key = resolveKey(overrideKey);
+  const ai = new GoogleGenAI({ apiKey: key });
 
   let lastError = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const result = await model.generateContent(userPrompt);
-      const text = result.response.text();
+      const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: userPrompt,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          maxOutputTokens: Math.min(2400, maxTokens + (attempt - 1) * 400),
+          temperature: 0.7
+        }
+      });
+      const text = response.text;
       if (!text) throw new Error('Gemini returned empty response.');
       return parseJsonPayload(text);
     } catch (error) {

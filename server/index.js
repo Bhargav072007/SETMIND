@@ -80,12 +80,10 @@ app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
     return;
   }
   try {
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const client = new GoogleGenerativeAI(apiKey);
-    const model = client.getGenerativeModel({ model: GEMINI_MODEL });
-    const result = await model.generateContent('ping');
-    const text = result.response.text();
-    res.json({ gemini: Boolean(text), model: GEMINI_MODEL, geminiConfigured: true });
+    const { GoogleGenAI } = require('@google/genai');
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: 'ping' });
+    res.json({ gemini: Boolean(response.text), model: GEMINI_MODEL, geminiConfigured: true });
   } catch (error) {
     console.error('Gemini health check failed:', error);
     res.json({ gemini: false, error: error.message, model: GEMINI_MODEL, geminiConfigured: Boolean(apiKey) });
