@@ -79,15 +79,27 @@ app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
     res.json({ gemini: false, error: 'No API key configured. Enter your Gemini API key in the app.', model: GEMINI_MODEL, geminiConfigured: false });
     return;
   }
-  try {
-    const { GoogleGenAI } = require('@google/genai');
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: 'ping' });
-    res.json({ gemini: Boolean(response.text), model: GEMINI_MODEL, geminiConfigured: true });
-  } catch (error) {
-    console.error('Gemini health check failed:', error);
-    res.json({ gemini: false, error: error.message, model: GEMINI_MODEL, geminiConfigured: Boolean(apiKey) });
+  const { GoogleGenAI } = require('@google/genai');
+  const ai = new GoogleGenAI({ apiKey });
+  const healthModels = [GEMINI_MODEL, 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+  let lastErr = null;
+  for (const model of healthModels) {
+    try {
+      const response = await ai.models.generateContent({ model, contents: 'ping' });
+      if (response.text) {
+        res.json({ gemini: true, model, geminiConfigured: true });
+        return;
+      }
+    } catch (err) {
+      lastErr = err;
+      console.error(`Health check failed for ${model}:`, err.message);
+      const msg = String(err.message || '');
+      const gone = msg.includes('404') || msg.includes('no longer available') || msg.includes('not found');
+      const busy = msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand');
+      if (!gone && !busy) break; // auth error, bad key — no point trying other models
+    }
   }
+  res.json({ gemini: false, error: lastErr?.message || 'All models unavailable', model: GEMINI_MODEL, geminiConfigured: Boolean(apiKey) });
 }));
 
 app.get('/api/search', asyncRoute(async function searchRoute(req, res) {

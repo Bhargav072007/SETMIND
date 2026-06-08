@@ -5,7 +5,8 @@ const { GoogleGenAI } = require('@google/genai');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const GEMINI_FALLBACK_MODEL = 'gemini-2.5-flash-8b';
+// Fallback chain: 2.5-flash (primary) → 1.5-flash (stable) → 1.5-flash-8b (last resort)
+const FALLBACK_MODELS = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
 
 function resolveKey(overrideKey) {
   const key = overrideKey || GEMINI_API_KEY;
@@ -42,9 +43,14 @@ function parseJsonPayload(rawText) {
   }
 }
 
-function is503(error) {
+function isRetryable(error) {
   const msg = String(error?.message || '');
-  return msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand');
+  return msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand') || msg.includes('overloaded');
+}
+
+function isModelGone(error) {
+  const msg = String(error?.message || '');
+  return msg.includes('404') || msg.includes('not found') || msg.includes('no longer available') || msg.includes('deprecated');
 }
 
 async function callModel(ai, model, userPrompt, maxTokens) {
@@ -66,25 +72,41 @@ async function callGemini(userPrompt, maxTokens = 800, overrideKey) {
   const key = resolveKey(overrideKey);
   const ai = new GoogleGenAI({ apiKey: key });
 
-  // Try primary model with retries, then fallback model
-  const RETRIES = [1500, 3000, 6000, 10000]; // ms waits between attempts
+  // Model ladder: primary first (2 attempts with short waits), then each fallback once
+  const modelLadder = [
+    { model: GEMINI_MODEL, wait: 0 },
+    { model: GEMINI_MODEL, wait: 2000 },
+    { model: FALLBACK_MODELS[0], wait: 1500 },
+    { model: FALLBACK_MODELS[1], wait: 0 },
+  ];
+
   let lastError = null;
 
-  for (let attempt = 0; attempt < RETRIES.length; attempt++) {
-    const model = attempt < 3 ? GEMINI_MODEL : GEMINI_FALLBACK_MODEL;
+  for (let i = 0; i < modelLadder.length; i++) {
+    const { model, wait } = modelLadder[i];
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     try {
-      return await callModel(ai, model, userPrompt, maxTokens);
+      const result = await callModel(ai, model, userPrompt, maxTokens);
+      if (i > 0) console.log(`[gemini] succeeded on fallback: ${model}`);
+      return result;
     } catch (error) {
       lastError = error;
-      console.error(`Gemini attempt ${attempt + 1} (${model}) failed: ${error.message}`);
-      if (!is503(error)) break; // non-503 errors won't get better with retries
-      if (attempt < RETRIES.length - 1) {
-        await new Promise((r) => setTimeout(r, RETRIES[attempt]));
+      console.error(`[gemini] attempt ${i + 1} (${model}) failed: ${error.message}`);
+      // Skip remaining attempts with this model if it's gone/deprecated
+      if (isModelGone(error)) {
+        console.warn(`[gemini] model ${model} unavailable, skipping to next`);
+        // Skip the second attempt for primary if model is 404
+        if (i === 0) i += 1;
+        continue;
+      }
+      // For non-retryable errors (bad key, quota, bad request), give up immediately
+      if (!isRetryable(error)) {
+        throw new Error(`Gemini error: ${error.message}`);
       }
     }
   }
 
-  throw new Error(`Gemini unavailable after ${RETRIES.length} attempts. Try again in a moment.`);
+  throw new Error(`Gemini models unavailable (high demand). Last error: ${lastError?.message || 'unknown'}. Try again in a moment.`);
 }
 
 async function planSet(params, apiKey) {
