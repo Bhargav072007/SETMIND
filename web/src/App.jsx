@@ -512,7 +512,31 @@ function BrandMark() {
         </div>
       </div>
       <strong>SETMIND</strong>
+      <small className="brand-byline">by karaoke.vision</small>
     </div>
+  );
+}
+
+function NameComLogo() {
+  return (
+    <span className="namecom-logo" aria-label="name.com">
+      <span className="namecom-name">name</span><span className="namecom-dot">.com</span>
+    </span>
+  );
+}
+
+function PoweredByNameCom() {
+  return (
+    <a
+      className="namecom-badge"
+      href="https://www.name.com"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Domain by name.com"
+    >
+      <span className="namecom-badge-label">Domain by</span>
+      <NameComLogo />
+    </a>
   );
 }
 
@@ -689,8 +713,8 @@ function LandingPage() {
       </section>
 
       <footer className="landing-footer">
-        <span>SETMIND © 2026</span>
-        <span>AI-Powered DJ Platform</span>
+        <span>SETMIND <strong>by karaoke.vision</strong> © 2026</span>
+        <PoweredByNameCom />
       </footer>
     </div>
   );
