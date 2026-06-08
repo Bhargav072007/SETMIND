@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 
-const MODEL = 'gemini-2.0-flash';
+const MODEL = 'gemini-2.5-flash';
 const GENRES = ['techno', 'house', 'dnb', 'hip-hop', 'afrobeats', 'pop', 'ambient', 'other'];
 const KEYS = ['Cm', 'C', 'Dm', 'D', 'Em', 'E', 'Fm', 'F', 'Gm', 'G', 'Am', 'A', 'Bm', 'B'];
 const TABS = ['DECKS', 'CROWD AI', 'SET PLAN', 'LIBRARY'];
@@ -890,7 +890,7 @@ function AppHeader({ activeTab, setActiveTab, status, onRefreshHealth }) {
             ))}
           </nav>
           <div className="header-right">
-            <StatusDot label="Gemini" tone={status.gemini ? 'green' : 'red'} />
+            <StatusDot label="Gemini" tone={status.gemini === null ? 'grey' : status.gemini ? 'green' : 'red'} />
             <button
               onClick={() => setShowKeyPanel(true)}
               style={{
@@ -1158,7 +1158,7 @@ function DeckPanel({ deck, setDeck, audio, openSearch, openAi, pushHistory, acti
     <section className={active ? 'deck-card glass-card active' : 'deck-card glass-card'}>
       <div className="panel-header">
         <div>
-          <label>Deck {deck.id}</label>
+          <label>Deck {deck.id}{active ? <span className="deck-live-tag">LIVE</span> : null}</label>
           <h2>{deck.trackName}</h2>
           <p>{deck.artist}</p>
         </div>
@@ -1308,9 +1308,11 @@ function MixerPanel({
         </div>
 
         <div className="sync-summary">
-          <span>{adjustedBpm(deckA).toFixed(1)} BPM</span>
-          <span>vs</span>
-          <span>{adjustedBpm(deckB).toFixed(1)} BPM</span>
+          <span>{adjustedBpm(deckA).toFixed(1)}</span>
+          <span className={Math.abs(adjustedBpm(deckA) - adjustedBpm(deckB)) <= 1 ? 'bpm-sync-text' : 'bpm-gap-text'}>
+            {Math.abs(adjustedBpm(deckA) - adjustedBpm(deckB)) <= 1 ? 'IN SYNC' : `Δ ${Math.abs(adjustedBpm(deckA) - adjustedBpm(deckB)).toFixed(1)} BPM`}
+          </span>
+          <span>{adjustedBpm(deckB).toFixed(1)}</span>
         </div>
 
         <div className="mixer-actions">
@@ -1448,8 +1450,8 @@ function MixerPanel({
           </div>
         </div>
 
-        <div className="ai-mixer-status">
-          <strong>Status</strong>
+        <div className={aiMixer.enabled ? 'ai-mixer-status armed' : 'ai-mixer-status'}>
+          <strong>{aiMixer.enabled ? '● Live' : 'Status'}</strong>
           <span>{aiMixer.status}</span>
         </div>
       </section>
@@ -2423,20 +2425,36 @@ function DecksTab({ deckA, setDeckA, deckB, setDeckB, library, energy, setEnergy
 
   return (
     <div className="tab-shell decks-shell" onPointerDown={audio.ensure}>
-      <section className="mix-overview glass-card">
-        <div className="mix-overview-grid">
-          <div>
-            <label>Session View</label>
-            <h3>Deck control room</h3>
-            <p className="muted-copy">Load two playable tracks, arm AI Mixer, and let it hand off transitions based on progress, BPM, and key fit.</p>
+      <div className="session-bar glass-card">
+        <div className="session-bar-inner">
+          <div className="session-deck-pill">
+            <span className={deckA.isPlaying ? 'sdeck-label live' : 'sdeck-label'}>A</span>
+            <div className="sdeck-info">
+              <strong>{deckA.trackName === 'Load a track' ? '—' : deckA.trackName}</strong>
+              <small>{deckA.artist || (deckA.trackName === 'Load a track' ? 'No track loaded' : '')}</small>
+            </div>
           </div>
-          <div className="overview-stats">
-            <article><span>Deck A</span><strong>{deckA.trackName}</strong></article>
-            <article><span>Deck B</span><strong>{deckB.trackName}</strong></article>
-            <article><span>AI Mixer</span><strong>{aiMixer.enabled ? 'Armed' : 'Off'}</strong></article>
+          <div className="session-center">
+            <div className="bpm-delta-badge">
+              <span>{adjustedBpm(deckA).toFixed(1)}</span>
+              <i className={Math.abs(adjustedBpm(deckA) - adjustedBpm(deckB)) <= 1 ? 'bpm-sync' : 'bpm-gap'}>
+                {Math.abs(adjustedBpm(deckA) - adjustedBpm(deckB)) <= 1 ? '⟷' : `Δ${Math.abs(adjustedBpm(deckA) - adjustedBpm(deckB)).toFixed(1)}`}
+              </i>
+              <span>{adjustedBpm(deckB).toFixed(1)}</span>
+            </div>
+            <div className={`ai-status-pill ${aiMixer.enabled ? 'armed' : ''}`}>
+              <span>{aiMixer.enabled ? '● ARMED' : '○ AI MIXER OFF'}</span>
+            </div>
+          </div>
+          <div className="session-deck-pill right">
+            <div className="sdeck-info">
+              <strong>{deckB.trackName === 'Load a track' ? '—' : deckB.trackName}</strong>
+              <small>{deckB.artist || (deckB.trackName === 'Load a track' ? 'No track loaded' : '')}</small>
+            </div>
+            <span className={deckB.isPlaying ? 'sdeck-label live' : 'sdeck-label'}>B</span>
           </div>
         </div>
-      </section>
+      </div>
 
       <div className="decks-layout">
         <DeckPanel deck={deckA} setDeck={setDeckA} audio={audio} openSearch={setSearchDeckId} openAi={(deckId) => { setAiDeckId(deckId); setAiOpen(true); }} pushHistory={pushHistory} active={deckA.isPlaying} mixTrigger={aiMixer.trigger} mixPlan={mixPlan} />
@@ -2477,7 +2495,7 @@ function DJApp() {
   const [deckA, setDeckA] = useState(makeDeck('A', STARTER_TRACKS[0]));
   const [deckB, setDeckB] = useState(makeDeck('B', STARTER_TRACKS[1]));
   const [library, setLibrary] = useState([]);
-  const [status, setStatus] = useState({ gemini: false, error: '' });
+  const [status, setStatus] = useState({ gemini: null, error: '' });
   const [dismissed, setDismissed] = useState(false);
   const [energy, setEnergy] = useState(7);
   const [history, setHistory] = useState([]);
@@ -2516,7 +2534,7 @@ function DJApp() {
     <div className="app-shell">
       <div className="app-aurora" />
       <AppHeader activeTab={activeTab} setActiveTab={setActiveTab} status={status} onRefreshHealth={() => { setDismissed(false); checkHealth(); }} />
-      {!status.gemini && !dismissed && (
+      {status.gemini === false && !dismissed && (
         <div className="warning-banner">
           <span>
             Gemini AI not connected — {status.error ? status.error : 'add your API key using the button in the top right.'}
