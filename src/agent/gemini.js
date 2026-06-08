@@ -76,7 +76,8 @@ async function callModel(ai, model, userPrompt, maxTokens) {
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       maxOutputTokens: maxTokens,
-      temperature: 0.7
+      temperature: 0.7,
+      responseMimeType: 'application/json'
     }
   });
   const text = response.text;
