@@ -81,25 +81,39 @@ app.get('/api/health', asyncRoute(async function healthRoute(req, res) {
   }
   const { GoogleGenAI } = require('@google/genai');
   const ai = new GoogleGenAI({ apiKey });
-  const healthModels = [GEMINI_MODEL, 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+  // Use fast models first for key validation — never use the primary (large) model for health checks
+  const healthModels = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
   let lastErr = null;
-  for (const model of healthModels) {
+
+  async function tryModel(model) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000); // 8s per model max
     try {
       const response = await ai.models.generateContent({ model, contents: 'ping' });
-      if (response.text) {
-        res.json({ gemini: true, model, geminiConfigured: true });
+      clearTimeout(timer);
+      return response.text ? true : false;
+    } catch (err) {
+      clearTimeout(timer);
+      throw err;
+    }
+  }
+
+  for (const model of healthModels) {
+    try {
+      const ok = await tryModel(model);
+      if (ok) {
+        res.json({ gemini: true, model: GEMINI_MODEL, checkedWith: model, geminiConfigured: true });
         return;
       }
     } catch (err) {
       lastErr = err;
       console.error(`Health check failed for ${model}:`, err.message);
       const msg = String(err.message || '').toLowerCase();
-      const gone = err.status === 404 || err.status === 400 || msg.includes('404') || msg.includes('no longer available') || msg.includes('not found') || msg.includes('not exist') || msg.includes('deprecated');
-      const busy = err.status === 503 || err.status === 429 || msg.includes('503') || msg.includes('429') || msg.includes('unavailable') || msg.includes('high demand') || msg.includes('overloaded') || msg.includes('resource_exhausted');
-      if (!gone && !busy) break; // auth error, bad key — no point trying other models
+      const isAuth = msg.includes('401') || msg.includes('403') || msg.includes('api_key') || msg.includes('invalid') || msg.includes('unauthorized');
+      if (isAuth) break; // bad key — no point trying more models
     }
   }
-  res.json({ gemini: false, error: lastErr?.message || 'All models unavailable', model: GEMINI_MODEL, geminiConfigured: Boolean(apiKey) });
+  res.json({ gemini: false, error: lastErr?.message || 'Models unavailable', model: GEMINI_MODEL, geminiConfigured: Boolean(apiKey) });
 }));
 
 app.get('/api/search', asyncRoute(async function searchRoute(req, res) {

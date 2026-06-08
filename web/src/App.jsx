@@ -755,8 +755,14 @@ function ApiKeyPanel({ onClose, onSave }) {
     try { localStorage.setItem(GEMINI_KEY_STORAGE, trimmed); } catch {}
     setTesting(true);
     setTestResult(null);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000); // 12s max
     try {
-      const res = await fetch('/api/health', { headers: { 'X-Gemini-Api-Key': trimmed } });
+      const res = await fetch('/api/health', {
+        headers: { 'X-Gemini-Api-Key': trimmed },
+        signal: controller.signal
+      });
+      clearTimeout(timer);
       const data = await res.json();
       if (data.gemini) {
         setTestResult('ok');
@@ -767,8 +773,13 @@ function ApiKeyPanel({ onClose, onSave }) {
         onSave();
       }
     } catch (e) {
-      setTestResult('Could not reach server to verify key.');
-      onSave();
+      clearTimeout(timer);
+      if (e.name === 'AbortError') {
+        setTestResult('Connection timed out. Key saved — Gemini may be slow right now.');
+      } else {
+        setTestResult('Could not reach server to verify key.');
+      }
+      onSave(); // save the key even if test timed out
     }
     setTesting(false);
   }
