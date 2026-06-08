@@ -4,9 +4,9 @@ require('dotenv').config();
 const { GoogleGenAI } = require('@google/genai');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-// Fallback chain: 2.5-flash (primary) → 1.5-flash (stable) → 1.5-flash-8b (last resort)
-const FALLBACK_MODELS = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+// Fallback chain: 3.1-pro-preview (primary) → 2.5-flash (fast) → 1.5-flash (stable) → 1.5-flash-8b (last resort)
+const FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
 
 function resolveKey(overrideKey) {
   const key = overrideKey || GEMINI_API_KEY;
@@ -91,10 +91,11 @@ async function callGemini(userPrompt, maxTokens = 800, overrideKey) {
 
   // Model ladder: primary first (2 attempts with short waits), then each fallback once
   const modelLadder = [
-    { model: GEMINI_MODEL, wait: 0 },
-    { model: GEMINI_MODEL, wait: 2000 },
-    { model: FALLBACK_MODELS[0], wait: 1500 },
-    { model: FALLBACK_MODELS[1], wait: 0 },
+    { model: GEMINI_MODEL,        wait: 0    },  // 3.1-pro-preview attempt 1
+    { model: GEMINI_MODEL,        wait: 2000 },  // 3.1-pro-preview attempt 2 (if 503)
+    { model: FALLBACK_MODELS[0],  wait: 1500 },  // gemini-2.5-flash
+    { model: FALLBACK_MODELS[1],  wait: 1000 },  // gemini-1.5-flash
+    { model: FALLBACK_MODELS[2],  wait: 0    },  // gemini-1.5-flash-8b
   ];
 
   let lastError = null;
