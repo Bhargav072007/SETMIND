@@ -746,15 +746,36 @@ function StatusDot({ label, tone }) {
 function ApiKeyPanel({ onClose, onSave }) {
   const [val, setVal] = React.useState(() => getStoredApiKey());
   const [visible, setVisible] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+  const [testResult, setTestResult] = React.useState(null); // null | 'ok' | string(error)
 
-  function save() {
-    try { localStorage.setItem(GEMINI_KEY_STORAGE, val.trim()); } catch {}
-    onSave();
-    onClose();
+  async function save() {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    try { localStorage.setItem(GEMINI_KEY_STORAGE, trimmed); } catch {}
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/health', { headers: { 'X-Gemini-Api-Key': trimmed } });
+      const data = await res.json();
+      if (data.gemini) {
+        setTestResult('ok');
+        onSave();
+        setTimeout(onClose, 900);
+      } else {
+        setTestResult(data.error || 'Key was rejected by Gemini.');
+        onSave();
+      }
+    } catch (e) {
+      setTestResult('Could not reach server to verify key.');
+      onSave();
+    }
+    setTesting(false);
   }
 
   function clear() {
     setVal('');
+    setTestResult(null);
     try { localStorage.removeItem(GEMINI_KEY_STORAGE); } catch {}
     onSave();
   }
@@ -800,11 +821,17 @@ function ApiKeyPanel({ onClose, onSave }) {
           }}>{visible ? 'hide' : 'show'}</button>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <button onClick={save} style={{
-            flex: 1, background: '#fc3c44', color: '#fff', border: 'none',
-            borderRadius: 8, padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer'
-          }}>Save Key</button>
+        <div style={{ display: 'flex', gap: 8, marginBottom: testResult ? 10 : 16 }}>
+          <button onClick={save} disabled={testing || !val.trim()} style={{
+            flex: 1,
+            background: testResult === 'ok' ? '#22c55e' : '#fc3c44',
+            color: '#fff', border: 'none',
+            borderRadius: 8, padding: '10px 0', fontSize: 13, fontWeight: 700,
+            cursor: testing ? 'wait' : 'pointer', opacity: (!val.trim() || testing) ? 0.6 : 1,
+            transition: 'background 0.2s'
+          }}>
+            {testing ? 'Testing…' : testResult === 'ok' ? 'Connected ✓' : 'Save & Test'}
+          </button>
           {val && (
             <button onClick={clear} style={{
               background: 'rgba(255,255,255,0.05)', color: '#888', border: '1px solid rgba(255,255,255,0.1)',
@@ -812,6 +839,16 @@ function ApiKeyPanel({ onClose, onSave }) {
             }}>Clear</button>
           )}
         </div>
+
+        {testResult && testResult !== 'ok' && (
+          <div style={{
+            marginBottom: 12, padding: '8px 12px',
+            background: 'rgba(252,60,68,0.08)', border: '1px solid rgba(252,60,68,0.2)',
+            borderRadius: 8, fontSize: 11, color: '#fc3c44', lineHeight: 1.5
+          }}>
+            {testResult}
+          </div>
+        )}
 
         <a
           href="https://aistudio.google.com/app/apikey"
@@ -2478,10 +2515,12 @@ function DJApp() {
   return (
     <div className="app-shell">
       <div className="app-aurora" />
-      <AppHeader activeTab={activeTab} setActiveTab={setActiveTab} status={status} onRefreshHealth={checkHealth} />
+      <AppHeader activeTab={activeTab} setActiveTab={setActiveTab} status={status} onRefreshHealth={() => { setDismissed(false); checkHealth(); }} />
       {!status.gemini && !dismissed && (
         <div className="warning-banner">
-          <span>Gemini AI not connected — check your GEMINI_API_KEY. Model: {MODEL}</span>
+          <span>
+            Gemini AI not connected — {status.error ? status.error : 'add your API key using the button in the top right.'}
+          </span>
           <button onClick={() => setDismissed(true)}>x</button>
         </div>
       )}
