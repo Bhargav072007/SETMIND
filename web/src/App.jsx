@@ -600,14 +600,21 @@ function LandingPage() {
       <section className="hero-block">
         <div className="hero-layout">
           <div className="hero-copy-column">
-            <p className="eyebrow">POWERED BY GOOGLE GEMINI AI</p>
+            <p className="eyebrow">SETMIND — BY KARAOKE.VISION</p>
             <h1>
               <span>The AI brain</span>
               <span>professional DJs actually use</span>
             </h1>
+            {/* Hackathon attribution — keep wording exactly "built for the name.com challenge".
+                TODO: insert name.com logo image here once logo permission is granted. */}
+            <div className="hackathon-badge">
+              <span className="hackathon-dot" aria-hidden="true" />
+              <span>Built for the <strong>name.com challenge</strong> · DeveloperWeek NY 2026 Hackathon</span>
+            </div>
             <p className="hero-copy">
               Real-time crowd analysis, set architecture, and AI-assisted transitions for DJs who need faster reads and cleaner decisions at show speed.
             </p>
+            <p className="eyebrow dim">POWERED BY GOOGLE GEMINI AI</p>
             <div className="hero-actions">
               <Link to="/app" className="button-accent">Launch SETMIND</Link>
               <a href="#features" className="button-ghost">View Features</a>
@@ -713,8 +720,13 @@ function LandingPage() {
       </section>
 
       <footer className="landing-footer">
-        <span>SETMIND <strong>by karaoke.vision</strong> © 2026</span>
-        <PoweredByNameCom />
+        <div className="landing-footer-row">
+          <span>SETMIND <strong>by karaoke.vision</strong> © 2026</span>
+          <PoweredByNameCom />
+        </div>
+        <p className="footer-about">
+          SETMIND, by karaoke.vision, integrates with name.com's domain services and was built for their hackathon challenge.
+        </p>
       </footer>
     </div>
   );
